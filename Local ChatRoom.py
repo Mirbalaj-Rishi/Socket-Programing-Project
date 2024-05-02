@@ -1,9 +1,17 @@
+print("This Program Was Made By Mirbalaj Rishi")
 import socket
 import threading
 global FORMAT
 FORMAT = 'utf-8'
 global DISCONNECTMESSAGE
-DISCONECTMESSAGE = "!Disconnect"
+DISCONNECTMESSAGE = "!Disconnect"
+print("""
+------------------------------------------------------------------------
+This code was written by Mirbalaj Rishi
+UI Comming Soon
+------------------------------------------------------------------------
+""")
+
 #___________________________________
 # general purpose menu system by Mirbalaj Rishi
 
@@ -36,67 +44,126 @@ Please Input Your Choice
 
 
 
-class interface:
+class interface: # sets up the interface that the user will use to set up the server or connect to the server
     def __init__(self,machineName,IP,portNumber): #sets default values and asks the user if they want to change it
         self.machineName = machineName
         self.myIP = IP
         self.portNumber = portNumber
         storeHistory = "ask"
         self.storeHistory = storeHistory
-    def questions(self):
+    def questions(self): # changes stuff
         
         
 
         #ADD MACHINENAME AND STOREHISTORY OPTIONS
     
-        print(f"Would you like to specify the port number? [the default is {self.portNumber}]")
-        socketUpdate = mainMenu("y", "n")
-        if socketUpdate == "y":
-            portNumber = int(input("please type in the port you want to use: "))
-        print("")
+        
+        
 
         print(f"""Your Current Display Name Is {self.machineName}.
         Would you like to change it?""")
         machineUpdate = mainMenu("y", "n")
         if machineUpdate == "y":
-            machineName = input("please type what you want your display name to be: ")
-            print(machineName)
-              
+            self.machineName = input("please type what you want your display name to be: ")
+        print("")
+        print(f"Would you like to specify the port number? [the default is {self.portNumber}]")
+        socketUpdate = mainMenu("y", "n")
+        if socketUpdate == "y":
+            portNumber = int(input("please type in the port you want to use: "))
 
-class serverCode:
-    def __init__ (self, machineName, storeHistory, portNumber, IP):
-        self.machineName = machineName
-        self.storeHistory = storeHistory
-        self.portNumber = portNumber
-        self.hostIP = IP
-    #function ideas [ip ban] [make a keyword paste something] [change port] [transfer owner] 
+class chatCode: #this is used by the server and client to send chat messages 
+    def __init__ (self, machineName,socketName):
+        self.myName = machineName
+        self.storeHistory = "no"
+        self.socketName = socketName
     
+    def receiveFunction(self): # this is used for an individual connection 
+        connected = True
+        
+        #otherName = "someone"
+        #print(f"| {otherName}, connected |")
+        while connected:
+            message = self.socketName.recv(2048).decode(FORMAT)
+            if message != "":
+                print(f"{message}")
+            if message == DISCONNECTMESSAGE: # this disconnects the client from the server to prevent issues disconnecting 
+                connected = False
+    def receive(self): # this is used to thread the receive function
+        threadReceive = threading.Thread(target= (self.receiveFunction), args= ()) 
+        threadReceive.start()
+        
+    
+    def sendFunction(self, myName): # this is used to send stuff to an individual
+        self.socketName.send(bytes(f"| {self.myName}: Connected |", FORMAT)) 
+        while True:
+            userInput = input()
+            if userInput == "!CMD":
+                print("| Commands Comming Soon |")
+            else:
+                self.socketName.send(bytes(f"{self.myName}: {userInput}", FORMAT))
+                print("| Message Sent |")
+    def send(self): # this is used to thread sendFunction
+        
+        threadSend = threading.Thread(target= (self.sendFunction), args= (self.myName,)) 
+        threadSend.start()
+        
+
+        
+class serverCode: # this is run exclusivly by the server 
+    def __init__ (self, machineName, portNumber, IP):
+        self.machineName = machineName
+        self.portNumber = portNumber
+        self.myIP = IP
+    #function ideas [ip ban] [make a keyword paste something] [change port] [transfer owner] 
+    """
     def clientConnection(connection, clientAddress):
         connected = True
         
-        clientName = "Will Find Name At Some Point"
+        clientName = "Someone"
         print(f" {clientName}, connected ")
         while connected:
             message = connection.recv(2048).decode(FORMAT)
             if message == DISCONNECTMESSAGE: # this disconnects the client from the server to prevent issues disconnecting 
                 connected = False
             print(f"{clientName}: {message}")
-    def serverRun(self):
+    """
+    def serverRun(self): # this gets the server to run 
         displayIP = "XXX.XXX.XXX.XXX"
+        displayIP = self.myIP
         serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        serverSocket.bind((self.hostIP, self.portNumber))
-        print("Server Is Starting.....")
-        print(f"Please Connect to {displayIP}")
+        serverSocket.bind((self.myIP, self.portNumber))
+        print("| Server Is Starting..... |")
+        print(f"| Please Connect to {displayIP} |")
         serverSocket.listen() #listen for connection
+        conn,addr = serverSocket.accept()
+        chatting = chatCode(self.machineName,conn)
+        chatting.receive()
+        chatting.send()
+        """
         while True:
             thread1 = threading.Thread(serverSocket.listen())
             thread1.start()
             connection, clientAddress = serverSocket.accept() #this will allow to get the address we are connected and information about the connect
-            """This allows us to handle mutiple clients by creating a new thread for each client"""
-            thread = threading.Thread(target=clientConnection, args=(connection, clientAddress)) 
-            thread.start()
+           #This allows us to handle mutiple clients by creating a new thread for each client
             print(f" Active connections {threading.active_count() - 2} ") #the start thread counts as a thread so total threads are client threads + start thread
+        """   
 
+class clientCode: # this is run exclusivly by the client 
+    def __init__(self, machineName, portNumber, IP):
+        self.machineName = machineName
+        self.serverPortNumber = portNumber
+        self.serverIP = IP
+
+    def clientRun(self): # this runs the client 
+        clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        clientSocket.connect((self.serverIP, self.serverPortNumber)) 
+        
+        chatting = chatCode(self.machineName,clientSocket)
+        chatting.receive()
+        chatting.send()
+           
+        
+        
 
 
 
@@ -115,10 +182,16 @@ port = 6060
 serverOrClient = mainMenu("server", "client") #ask user if server or client
 userInput = interface(machineName,IP,port)
 userInput.questions()
-server = serverCode(userInput.machineName, userInput.storeHistory, userInput.portNumber, userInput.myIP)
 if serverOrClient == "server":
+    server = serverCode(userInput.machineName, userInput.portNumber, userInput.myIP)
     print("---------------------------------------------------------------------------------------")
     server.serverRun()
+elif serverOrClient == "client":
+    client = clientCode(userInput.machineName, userInput.portNumber, input("Please give the IP address of the server you want to connect to: "))
+    print("---------------------------------------------------------------------------------------")
+    client.clientRun()
+    
+
 
 
 
